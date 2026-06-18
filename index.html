@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IQ Test Challenge</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to right, #141e30, #243b55);
+      color: white;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      width: 90%;
+      max-width: 600px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+      position: relative;
+      overflow: hidden;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .question {
+      display: none;
+      animation: fadeIn 0.5s ease-in-out;
+    }
+
+    .question.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from {opacity: 0;}
+      to {opacity: 1;}
+    }
+
+    .animated-shape {
+      width: 80px;
+      height: 80px;
+      margin: 10px auto;
+      background-color: #00ffcc;
+      border-radius: 50%;
+      animation: rotateShape 2s linear infinite;
+    }
+
+    @keyframes rotateShape {
+      0% {transform: rotate(0deg);}
+      100% {transform: rotate(360deg);}
+    }
+
+    .options label {
+      display: block;
+      padding: 8px;
+      margin: 5px 0;
+      background: #ffffff10;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .options label:hover {
+      background: #ffffff30;
+    }
+
+    .correct {
+      background-color: #28a745 !important;
+    }
+
+    .incorrect {
+      background-color: #dc3545 !important;
+    }
+
+    #timer {
+      text-align: right;
+      font-size: 16px;
+      margin-bottom: 10px;
+      color: #ffcc00;
+    }
+
+    #result {
+      text-align: center;
+      font-size: 24px;
+      margin-top: 20px;
+    }
+
+    .explanation {
+      margin-top: 20px;
+      font-size: 14px;
+      background: rgba(255,255,255,0.1);
+      padding: 10px;
+      border-radius: 8px;
+      text-align: left;
+    }
+
+    .iq-brain {
+      margin-top: 20px;
+      width: 100%;
+      height: 30px;
+      background: #333;
+      border-radius: 15px;
+      overflow: hidden;
+    }
+
+    .iq-brain-fill {
+      height: 100%;
+      width: 0;
+      background: linear-gradient(to right, #00f, #0ff);
+      transition: width 2s ease;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>IQ Test Challenge</h1>
+    <div id="quiz"></div>
+    <div id="timer">Time left: <span id="time">30</span> seconds</div>
+    <div id="result"></div>
+    <div class="iq-brain"><div class="iq-brain-fill" id="iqBar"></div></div>
+    <div class="explanation" id="explanation"></div>
+  </div>
+
+  <script>
+    const parsedQuestions = [
+      { q: "What comes next in the series? 3, 9, 27, ?", options: ["36", "54", "81", "72"], answer: "81", explanation: "Each term is multiplied by 3." },
+      { q: "Find the odd one: Triangle, Square, Circle, Cube", options: ["Triangle", "Square", "Circle", "Cube"], answer: "Cube", explanation: "Others are 2D shapes; Cube is 3D." },
+      { q: "Which number doesn't belong? 2, 3, 5, 7, 9, 11", options: ["3", "5", "9", "11"], answer: "9", explanation: "All except 9 are prime numbers." },
+      { q: "If ALL SQUARES are RECTANGLES, and SOME RECTANGLES are RED, then:", options: ["Some squares are red", "All squares are red", "No squares are red", "None of the above"], answer: "None of the above", explanation: "Can't conclude about squares being red from given statements." },
+      { q: "What comes next? 2, 4, 8, 16, ?", options: ["18", "20", "24", "32"], answer: "32", explanation: "Doubles each time." },
+      { q: "Which shape has the most sides?", options: ["Pentagon", "Hexagon", "Octagon", "Heptagon"], answer: "Octagon", explanation: "Octagon has 8 sides." },
+      { q: "What is the missing number? 1, 4, 9, 16, ?, 36", options: ["25", "20", "24", "30"], answer: "25", explanation: "Perfect squares: 1², 2², 3²..." },
+      { q: "If 2 = 4, 3 = 9, 4 = 16, then 5 = ?", options: ["10", "20", "25", "30"], answer: "25", explanation: "It's squaring the number." },
+      { q: "What letter comes next: A, C, F, J, ?", options: ["O", "M", "N", "L"], answer: "O", explanation: "+2, +3, +4, +5 = O" },
+      { q: "Which word does not belong? Apple, Banana, Carrot, Mango", options: ["Banana", "Carrot", "Mango", "Apple"], answer: "Carrot", explanation: "Carrot is a vegetable, others are fruits." }
+    ];
+
+    let current = 0;
+    let score = 0;
+    let timer;
+    let timeLeft = 30;
+    let wrongAnswers = [];
+
+    const quizEl = document.getElementById("quiz");
+    const timeEl = document.getElementById("time");
+    const resultEl = document.getElementById("result");
+    const explanationEl = document.getElementById("explanation");
+    const iqBar = document.getElementById("iqBar");
+
+    function renderQuestion() {
+      if (current >= parsedQuestions.length) return;
+      const q = parsedQuestions[current];
+      quizEl.innerHTML = `
+        <div class="question active">
+          <h3>${current + 1}. ${q.q}</h3>
+          <div class="animated-shape"></div>
+          <div class="options">
+            ${q.options.map((opt, i) => `
+              <label><input type="radio" name="q${current}" value="${opt}" data-label="${String.fromCharCode(65+i)}"/> ${String.fromCharCode(65+i)}. ${opt}</label>
+            `).join('')}
+          </div>
+        </div>
+      `;
+      startTimer();
+      quizEl.querySelectorAll("input").forEach(input => {
+        input.addEventListener("change", () => checkAnswer(input));
+      });
+    }
+
+    function startTimer() {
+      clearInterval(timer);
+      timeLeft = 30;
+      timeEl.textContent = timeLeft;
+      timer = setInterval(() => {
+        timeLeft--;
+        timeEl.textContent = timeLeft;
+        if (timeLeft <= 0) {
+          clearInterval(timer);
+          checkAnswer(null);
+        }
+      }, 1000);
+    }
+
+    function checkAnswer(selectedInput) {
+      clearInterval(timer);
+      const q = parsedQuestions[current];
+      const options = quizEl.querySelectorAll("input");
+
+      options.forEach(opt => {
+        const label = opt.closest('label');
+        if (opt.value === q.answer) {
+          label.classList.add("correct");
+        } else if (opt === selectedInput) {
+          label.classList.add("incorrect");
+        }
+        opt.disabled = true;
+      });
+
+      if (selectedInput && selectedInput.value === q.answer) {
+        score++;
+      } else {
+        wrongAnswers.push({ question: q.q, correct: q.answer, explanation: q.explanation });
+      }
+
+      setTimeout(() => {
+        current++;
+        if (current < parsedQuestions.length) {
+          renderQuestion();
+        } else {
+          showResult();
+        }
+      }, 1000);
+    }
+
+    function showResult() {
+      const iqScore = score * 10;
+      resultEl.textContent = `Your IQ Score: ${iqScore} / 100`;
+      iqBar.style.width = iqScore + "%";
+      if (wrongAnswers.length > 0) {
+        explanationEl.innerHTML = `<h4>Review of Incorrect Answers:</h4><ul>` + wrongAnswers.map((item, i) => `
+          <li><strong>Q${i + 1}:</strong> ${item.correct} — ${item.explanation}</li>`).join('') + `</ul>`;
+      } else {
+        explanationEl.innerHTML = `<h4>Excellent! All answers were correct 🎉</h4>`;
+      }
+    }
+
+    renderQuestion();
+  </script>
+</body>
+</html>
